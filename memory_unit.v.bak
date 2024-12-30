@@ -1,0 +1,14 @@
+module memory_unit (
+    input clk,
+    input save_mem,        // Save memory (key[0])
+    input clear_mem,       // Clear memory (key[1])
+    input [7:0] result,    // Input result to save
+    output reg [7:0] memory // Stored memory
+);
+    always @(posedge clk) begin
+        if (clear_mem)
+            memory <= 8'b00000000; // Clear memory
+        else if (save_mem)
+            memory <= result;      // Save result to memory
+    end
+endmodule

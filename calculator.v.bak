@@ -1,0 +1,85 @@
+module calculator (
+    input clk,
+    input [9:0] sw,           // Switches for inputs and operation selection
+    input [1:0] key,          // Buttons for memory operations
+    output [6:0] HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, // Seven-segment displays
+    output reg overflow       // Overflow flag
+);
+    // Input signals
+    wire [3:0] a0 = sw[3:0];   // First 4-bit number
+    wire [3:0] a1 = sw[7:4];   // Second 4-bit number
+    wire [1:0] op_select = sw[9:8]; // Operation selection
+
+    // Intermediate results
+    wire [4:0] add_sub_result; // 5-bit result to include carry-out
+    wire [3:0] div_result;
+    wire [7:0] multi_result;   // 8-bit result for multiplication
+    wire div_overflow;
+
+    reg [7:0] result;          // 8-bit result to accommodate multiplication
+
+    // Tens and units for display
+    wire [3:0] a0_tens, a0_units;
+    wire [3:0] a1_tens, a1_units;
+    wire [3:0] result_tens, result_units;
+
+    // Instantiate the adder/subtractor module
+    four_bit_adder_subtractor add_sub (
+        .a0(a0), 
+        .a1(a1), 
+        .s(op_select[0]),      // Use op_select[0] for addition (0) or subtraction (1)
+        .result(add_sub_result)
+    );
+
+    // Instantiate the updated multiplier module
+    customMultiplier multi (
+        .operand1(a0), 
+        .operand2(a1), 
+        .product(multi_result) // 8-bit multiplication result
+    );
+
+    // Instantiate divider (unchanged)
+    divider div (
+        .a0(a0), 
+        .a1(a1), 
+        .quotient(div_result), 
+        .overflow(div_overflow)
+    );
+
+    // Operation selection logic
+    always @(*) begin
+        case (op_select)
+            2'b00: result = {3'b000, add_sub_result};  // Addition
+            2'b01: result = {3'b000, add_sub_result};  // Subtraction
+            2'b10: result = multi_result;             // Multiplication
+            2'b11: result = {4'b0000, div_result};    // Division
+            default: result = 8'b00000000;            // Default case
+        endcase
+    end
+
+    // Overflow logic
+    always @(*) begin
+        if (op_select == 2'b10) // Multiplication
+            overflow = (result > 8'd99); // Restrict multiplication to <100
+        else if (op_select == 2'b11) // Division
+            overflow = div_overflow; // Division by zero
+        else
+            overflow = (add_sub_result > 5'b01111); // Overflow for addition/subtraction
+    end  
+
+    // Split result into tens and units for display
+    assign a0_tens = a0 / 10;   // Tens place of a0
+    assign a0_units = a0 % 10;  // Units place of a0
+    assign a1_tens = a1 / 10;   // Tens place of a1
+    assign a1_units = a1 % 10;  // Units place of a1
+    assign result_tens = result / 10; // Tens place of result
+    assign result_units = result % 10; // Units place of result
+
+    // Seven-segment display connections
+    seven_segment_decoder display_a0_tens (.binary(a0_tens), .seg(HEX5));
+    seven_segment_decoder display_a0_units (.binary(a0_units), .seg(HEX4));
+    seven_segment_decoder display_a1_tens (.binary(a1_tens), .seg(HEX3));
+    seven_segment_decoder display_a1_units (.binary(a1_units), .seg(HEX2));
+    seven_segment_decoder display_result_tens (.binary(result_tens), .seg(HEX1));
+    seven_segment_decoder display_result_units (.binary(result_units), .seg(HEX0));
+endmodule

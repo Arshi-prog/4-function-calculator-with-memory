@@ -1,0 +1,20 @@
+module four_bit_adder_subtractor (
+    input [3:0] a0,       // First 4-bit operand
+    input [3:0] a1,       // Second 4-bit operand
+    input s,              // Control signal: 0 for addition, 1 for subtraction
+    output [4:0] result   // 5-bit result to include carry/borrow
+);
+    wire [3:0] b;         // Second operand adjusted for subtraction
+    wire [3:0] carry;     // Carry/borrow signals between full adders
+
+    // Directly handle addition and subtraction:
+    // If s = 0 (Addition): b = a1
+    // If s = 1 (Subtraction): b = ~a1 + 1 (two's complement logic achieved via carry-in)
+    assign b = (s) ? ~a1 : a1;
+
+    // Full adder logic for each bit
+    assign {carry[0], result[0]} = a0[0] + b[0] + s;
+    assign {carry[1], result[1]} = a0[1] + b[1] + carry[0];
+    assign {carry[2], result[2]} = a0[2] + b[2] + carry[1];
+    assign {result[4], result[3]} = a0[3] + b[3] + carry[2]; // Carry-out included in result[4]
+endmodule
